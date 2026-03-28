@@ -10,20 +10,21 @@ import java.util.concurrent.*;
 public class ParallelGenerator {
 
     private final GeneratorConfig config;
+    private final int threadCount;
 
-    public ParallelGenerator(GeneratorConfig config) {
+    public ParallelGenerator(GeneratorConfig config, int threadCount) {
         this.config = config;
+        this.threadCount = threadCount;
     }
 
     public List<GameStorePublication> generatePublications() throws InterruptedException, ExecutionException {
         int total = config.getTotalPublications();
-        int threads = config.getThreadCount();
-        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
 
         List<Future<List<GameStorePublication>>> futures = new ArrayList<>();
-        int[] chunks = splitIntoChunks(total, threads);
+        int[] chunks = splitIntoChunks(total, threadCount);
 
-        for (int t = 0; t < threads; t++) {
+        for (int t = 0; t < threadCount; t++) {
             final int chunkSize = chunks[t];
             final long seed = System.nanoTime() + t;
             futures.add(executor.submit(() -> {
@@ -44,13 +45,12 @@ public class ParallelGenerator {
 
     public List<GameStoreSubscription> generateSubscriptions() throws InterruptedException, ExecutionException {
         int total = config.getTotalSubscriptions();
-        int threads = config.getThreadCount();
-        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
 
         List<Future<List<GameStoreSubscription>>> futures = new ArrayList<>();
-        int[] chunks = splitIntoChunks(total, threads);
+        int[] chunks = splitIntoChunks(total, threadCount);
 
-        for (int t = 0; t < threads; t++) {
+        for (int t = 0; t < threadCount; t++) {
             final int chunkSize = chunks[t];
             final long seed = System.nanoTime() + t * 1000L;
             futures.add(executor.submit(() -> {

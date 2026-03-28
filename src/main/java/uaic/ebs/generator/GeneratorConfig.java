@@ -1,17 +1,24 @@
 package uaic.ebs.generator;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 @Getter
 @Builder(toBuilder = true)
+@JsonDeserialize(builder = GeneratorConfig.GeneratorConfigBuilder.class)
 public class GeneratorConfig {
 
 	private final int totalPublications;
 	private final int totalSubscriptions;
-	private final int threadCount;
+	private final List<Integer> threadCounts;
 	private final Map<String, Double> fieldFrequencies;
 	private final Map<String, Double> equalityFrequencies;
 	private final double minPrice;
@@ -21,11 +28,19 @@ public class GeneratorConfig {
 	private final double minRating;
 	private final double maxRating;
 
+	@JsonPOJOBuilder(withPrefix = "")
+	public static class GeneratorConfigBuilder {
+	}
+
+	public static GeneratorConfig fromFile(String filePath) throws IOException {
+		return new ObjectMapper().readValue(new File(filePath), GeneratorConfig.class);
+	}
+
 	public static GeneratorConfig defaultConfig() {
 		return GeneratorConfig.builder()
 				.totalPublications(10_000)
 				.totalSubscriptions(10_000)
-				.threadCount(4)
+				.threadCounts(List.of(1, 2, 4))
 				.fieldFrequencies(Map.of(
 						"company", 0.90,
 						"price", 0.80,

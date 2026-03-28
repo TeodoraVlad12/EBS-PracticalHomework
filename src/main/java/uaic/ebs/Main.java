@@ -1,5 +1,6 @@
 package uaic.ebs;
 
+import uaic.ebs.constants.Constants;
 import uaic.ebs.generator.GeneratorConfig;
 import uaic.ebs.generator.ParallelGenerator;
 import uaic.ebs.io.FileWriter;
@@ -10,29 +11,19 @@ import java.util.List;
 
 public class Main {
 
-    private static final String GAME_PUBLICATIONS_BASE_FILE_PATH = "generated/publications/";
-    private static final String GAME_SUBSCRIPTIONS_BASE_FILE_PATH = "generated/subscriptions/";
-
-    private static final String GAME_PUBLICATIONS_FILE_SUFFIX = "game_store_publications.txt";
-    private static final String GAME_SUBSCRIPTIONS_FILE_SUFFIX = "game_store_subscriptions.txt";
-
     public static void main(String[] args) throws Exception {
-        int[] threadCounts = { 1, 2, 4 };
+        GeneratorConfig config = GeneratorConfig.fromFile(Constants.CONFIG_FILE);
 
-        for (int threads : threadCounts) {
-            runBenchmark(threads);
+        for (int threadCount : config.getThreadCounts()) {
+            runBenchmark(config, threadCount);
         }
     }
 
-    private static void runBenchmark(int threadCount) throws Exception {
-        GeneratorConfig config = GeneratorConfig.defaultConfig().toBuilder()
-                .threadCount(threadCount)
-                .build();
-
+    private static void runBenchmark(GeneratorConfig config, int threadCount) throws Exception {
         System.out.printf("=== Threads: %d | Publications: %,d | Subscriptions: %,d ===%n",
                 threadCount, config.getTotalPublications(), config.getTotalSubscriptions());
 
-        ParallelGenerator generator = new ParallelGenerator(config);
+        ParallelGenerator generator = new ParallelGenerator(config, threadCount);
 
         long pubStart = System.nanoTime();
         List<GameStorePublication> publications = generator.generatePublications();
@@ -42,17 +33,14 @@ public class Main {
         List<GameStoreSubscription> subscriptions = generator.generateSubscriptions();
         long subEnd = System.nanoTime();
 
-        long totalStart = pubStart;
-        long totalEnd = subEnd;
-
         System.out.printf("  Publication generation : %6.2f ms%n", msFrom(pubStart, pubEnd));
         System.out.printf("  Subscription generation: %6.2f ms%n", msFrom(subStart, subEnd));
-        System.out.printf("  Total generation time  : %6.2f ms%n", msFrom(totalStart, totalEnd));
+        System.out.printf("  Total generation time  : %6.2f ms%n", msFrom(pubStart, subEnd));
 
-        String pubFilePath = GAME_PUBLICATIONS_BASE_FILE_PATH + threadCount + "_threads_"
-                + GAME_PUBLICATIONS_FILE_SUFFIX;
-        String subFilePath = GAME_SUBSCRIPTIONS_BASE_FILE_PATH + threadCount + "_threads_"
-                + GAME_SUBSCRIPTIONS_FILE_SUFFIX;
+        String pubFilePath = Constants.PUBLICATIONS_BASE_PATH + threadCount + "_threads_"
+                + Constants.PUBLICATIONS_SUFFIX;
+        String subFilePath = Constants.SUBSCRIPTIONS_BASE_PATH + threadCount + "_threads_"
+                + Constants.SUBSCRIPTIONS_SUFFIX;
         FileWriter.writePublications(publications, pubFilePath);
         FileWriter.writeSubscriptions(subscriptions, subFilePath);
 

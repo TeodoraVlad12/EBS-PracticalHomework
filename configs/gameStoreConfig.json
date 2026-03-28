@@ -1,0 +1,21 @@
+{
+  "totalPublications": 10000,
+  "totalSubscriptions": 10000,
+  "threadCounts": [1, 2, 4],
+  "fieldFrequencies": {
+    "company": 0.90,
+    "price": 0.80,
+    "discount": 0.60,
+    "rating": 0.70,
+    "genre": 0.40
+  },
+  "equalityFrequencies": {
+    "company": 0.70
+  },
+  "minPrice": 0.0,
+  "maxPrice": 70.0,
+  "minDiscount": 0,
+  "maxDiscount": 100,
+  "minRating": 0.0,
+  "maxRating": 10.0
+}
