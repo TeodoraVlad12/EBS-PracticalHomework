@@ -1,0 +1,81 @@
+package uaic.ebs.generator;
+
+import uaic.ebs.model.GameStorePublication;
+import uaic.ebs.model.GameStoreSubscription;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
+
+public class ParallelGenerator {
+
+    private final GeneratorConfig config;
+
+    public ParallelGenerator(GeneratorConfig config) {
+        this.config = config;
+    }
+
+    public List<GameStorePublication> generatePublications() throws InterruptedException, ExecutionException {
+        int total = config.getTotalPublications();
+        int threads = config.getThreadCount();
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+
+        List<Future<List<GameStorePublication>>> futures = new ArrayList<>();
+        int[] chunks = splitIntoChunks(total, threads);
+
+        for (int t = 0; t < threads; t++) {
+            final int chunkSize = chunks[t];
+            final long seed = System.nanoTime() + t;
+            futures.add(executor.submit(() -> {
+                GameStorePublicationGenerator gen = new GameStorePublicationGenerator(config, seed);
+                return gen.generate(chunkSize);
+            }));
+        }
+
+        executor.shutdown();
+        executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+
+        List<GameStorePublication> result = new ArrayList<>(total);
+        for (Future<List<GameStorePublication>> future : futures) {
+            result.addAll(future.get());
+        }
+        return result;
+    }
+
+    public List<GameStoreSubscription> generateSubscriptions() throws InterruptedException, ExecutionException {
+        int total = config.getTotalSubscriptions();
+        int threads = config.getThreadCount();
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+
+        List<Future<List<GameStoreSubscription>>> futures = new ArrayList<>();
+        int[] chunks = splitIntoChunks(total, threads);
+
+        for (int t = 0; t < threads; t++) {
+            final int chunkSize = chunks[t];
+            final long seed = System.nanoTime() + t * 1000L;
+            futures.add(executor.submit(() -> {
+                GameStoreSubscriptionGenerator gen = new GameStoreSubscriptionGenerator(config, seed);
+                return gen.generate(chunkSize);
+            }));
+        }
+
+        executor.shutdown();
+        executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+
+        List<GameStoreSubscription> result = new ArrayList<>(total);
+        for (Future<List<GameStoreSubscription>> future : futures) {
+            result.addAll(future.get());
+        }
+        return result;
+    }
+
+    private int[] splitIntoChunks(int total, int threads) {
+        int[] chunks = new int[threads];
+        int base = total / threads;
+        int remainder = total % threads;
+        for (int i = 0; i < threads; i++) {
+            chunks[i] = base + (i < remainder ? 1 : 0);
+        }
+        return chunks;
+    }
+}
