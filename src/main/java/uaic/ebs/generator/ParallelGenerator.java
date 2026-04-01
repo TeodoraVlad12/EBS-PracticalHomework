@@ -4,7 +4,9 @@ import uaic.ebs.model.GameStorePublication;
 import uaic.ebs.model.GameStoreSubscription;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
 
 public class ParallelGenerator {
@@ -50,12 +52,20 @@ public class ParallelGenerator {
         List<Future<List<GameStoreSubscription>>> futures = new ArrayList<>();
         int[] chunks = splitIntoChunks(total, threadCount);
 
+        Map<String, int[]> fieldCountsPerThread = computeFieldCountsPerThread(total);
+        Map<String, int[]> equalityCountsPerThread = computeEqualityCountsPerThread(total);
+
         for (int t = 0; t < threadCount; t++) {
             final int chunkSize = chunks[t];
             final long seed = System.nanoTime() + t * 1000L;
+            final int threadIndex = t;
+
+            Map<String, Integer> threadFieldCounts = extractThreadSlice(fieldCountsPerThread, threadIndex);
+            Map<String, Integer> threadEqualityCounts = extractThreadSlice(equalityCountsPerThread, threadIndex);
+
             futures.add(executor.submit(() -> {
                 GameStoreSubscriptionGenerator gen = new GameStoreSubscriptionGenerator(config, seed);
-                return gen.generate(chunkSize);
+                return gen.generate(chunkSize, threadFieldCounts, threadEqualityCounts);
             }));
         }
 
@@ -67,6 +77,35 @@ public class ParallelGenerator {
             result.addAll(future.get());
         }
         return result;
+    }
+
+    private Map<String, int[]> computeFieldCountsPerThread(int total) {
+        Map<String, int[]> result = new HashMap<>();
+        for (Map.Entry<String, Double> entry : config.getFieldFrequencies().entrySet()) {
+            int globalCount = (int) Math.round(entry.getValue() * total);
+            result.put(entry.getKey(), splitIntoChunks(globalCount, threadCount));
+        }
+        return result;
+    }
+
+    private Map<String, int[]> computeEqualityCountsPerThread(int total) {
+        Map<String, int[]> result = new HashMap<>();
+        for (Map.Entry<String, Double> entry : config.getEqualityFrequencies().entrySet()) {
+            String field = entry.getKey();
+            double fieldFreq = config.getFieldFrequencies().getOrDefault(field, 0.0);
+            int globalFieldCount = (int) Math.round(fieldFreq * total);
+            int globalEqualityCount = (int) Math.round(entry.getValue() * globalFieldCount);
+            result.put(field, splitIntoChunks(globalEqualityCount, threadCount));
+        }
+        return result;
+    }
+
+    private Map<String, Integer> extractThreadSlice(Map<String, int[]> perThreadMap, int threadIndex) {
+        Map<String, Integer> slice = new HashMap<>();
+        for (Map.Entry<String, int[]> entry : perThreadMap.entrySet()) {
+            slice.put(entry.getKey(), entry.getValue()[threadIndex]);
+        }
+        return slice;
     }
 
     private int[] splitIntoChunks(int total, int threads) {

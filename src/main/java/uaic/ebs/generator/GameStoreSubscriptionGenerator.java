@@ -35,8 +35,27 @@ public class GameStoreSubscriptionGenerator {
     }
 
     public List<GameStoreSubscription> generate(int count) {
-        boolean[][] fieldPresence = computeFieldPresence(count);
-        Operator[][] fieldOperators = computeFieldOperators(count, fieldPresence);
+        Map<String, Integer> fieldCounts = new HashMap<>();
+        for (String field : ALL_FIELDS) {
+            double freq = config.getFieldFrequencies().getOrDefault(field, 0.0);
+            fieldCounts.put(field, Math.min((int) Math.round(freq * count), count));
+        }
+
+        Map<String, Integer> equalityCounts = new HashMap<>();
+        for (String field : ALL_FIELDS) {
+            double eqFreq = config.getEqualityFrequencies().getOrDefault(field, -1.0);
+            if (eqFreq >= 0) {
+                int fieldCount = fieldCounts.get(field);
+                equalityCounts.put(field, Math.min((int) Math.round(eqFreq * fieldCount), fieldCount));
+            }
+        }
+
+        return generate(count, fieldCounts, equalityCounts);
+    }
+
+    public List<GameStoreSubscription> generate(int count, Map<String, Integer> fieldCounts, Map<String, Integer> equalityCounts) {
+        boolean[][] fieldPresence = computeFieldPresence(count, fieldCounts);
+        Operator[][] fieldOperators = computeFieldOperators(count, fieldPresence, equalityCounts);
 
         List<GameStoreSubscription> subscriptions = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
@@ -51,13 +70,11 @@ public class GameStoreSubscriptionGenerator {
         return subscriptions;
     }
 
-    private boolean[][] computeFieldPresence(int count) {
+    private boolean[][] computeFieldPresence(int count, Map<String, Integer> fieldCounts) {
         boolean[][] presence = new boolean[ALL_FIELDS.size()][count];
         for (int f = 0; f < ALL_FIELDS.size(); f++) {
             String field = ALL_FIELDS.get(f);
-            double freq = config.getFieldFrequencies().getOrDefault(field, 0.0);
-            int required = (int) Math.ceil(freq * count);
-            required = Math.min(required, count);
+            int required = fieldCounts.getOrDefault(field, 0);
 
             List<Integer> indices = new ArrayList<>(count);
             for (int i = 0; i < count; i++)
@@ -71,13 +88,11 @@ public class GameStoreSubscriptionGenerator {
         return presence;
     }
 
-    private Operator[][] computeFieldOperators(int count, boolean[][] fieldPresence) {
+    private Operator[][] computeFieldOperators(int count, boolean[][] fieldPresence, Map<String, Integer> equalityCounts) {
         Operator[][] operators = new Operator[ALL_FIELDS.size()][count];
         for (int f = 0; f < ALL_FIELDS.size(); f++) {
             String field = ALL_FIELDS.get(f);
             boolean isString = field.equals(FIELD_COMPANY) || field.equals(FIELD_GENRE);
-
-            double eqFreq = config.getEqualityFrequencies().getOrDefault(field, -1.0);
 
             List<Integer> presentIndices = new ArrayList<>();
             for (int i = 0; i < count; i++) {
@@ -85,9 +100,8 @@ public class GameStoreSubscriptionGenerator {
                     presentIndices.add(i);
             }
 
-            if (eqFreq >= 0) {
-                int equalCount = (int) Math.ceil(eqFreq * presentIndices.size());
-                equalCount = Math.min(equalCount, presentIndices.size());
+            if (equalityCounts.containsKey(field)) {
+                int equalCount = Math.min(equalityCounts.get(field), presentIndices.size());
 
                 List<Integer> shuffled = new ArrayList<>(presentIndices);
                 Collections.shuffle(shuffled, random);

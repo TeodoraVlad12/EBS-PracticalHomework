@@ -16,10 +16,10 @@ Processor: **Apple M3 Pro**
 
 Runtime: **JDK 21**
 
-Results averaged over 3 runs:
+Results averaged over 11 runs:
 
 | Threads | Pub Gen (ms) | Sub Gen (ms) | Total (ms) |
 |---------|-------------|-------------|-----------|
-| 1       | 4.58        | 15.74       | 20.32     |
-| 2       | 0.55        | 9.42        | 9.97      |
-| 4       | 0.56        | 7.19        | 7.75      |
+| 1       | 3.62        | 16.22       | 19.84     |
+| 2       | 0.54        | 8.45        | 8.99      |
+| 4       | 0.60        | 8.06        | 8.66      |
